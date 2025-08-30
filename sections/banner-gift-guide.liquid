@@ -127,13 +127,12 @@
                 toggleMenu();
             }
         });
-        //Handle resize -  close menu on large screens
-        window.addEventListener('resize', function() {
-            if (window.innerWidth > 768 && menuOpen ){
-                toggleMenu();
-                
-            }
-        });
+        //Handle resize - close menu on large screens
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 768 && menuOpen ){
+            toggleMenu();
+        }
+    });
         //Add hover effects to buttons
         document.querySelectorAll('.header-button, .banner-button').forEach(button => {
             button.addEventListener('mouseenter', function() {
