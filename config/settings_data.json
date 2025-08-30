@@ -155,7 +155,7 @@
         "type": "grid-gift-guide",
         "settings": {
           "heading": "Tisso vison in the wild",
-          "collection": ""
+          "collection": "featured-collection"
         }
       }
     },
