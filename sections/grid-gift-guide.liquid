@@ -1,0 +1,735 @@
+<!-- sections/grid-gift-guide.liquid -->
+
+<div class="gift-guide-grid">
+ {{ 'section-grid-gift-guide.css' | asset_url | stylesheet_tag }}
+  <h2 class="section-heading">{{ section.settings.heading }}</h2>
+  
+  <!-- Plus signs positioned exactly as specified -->
+  {% if section.settings.collection != blank %}
+    <div class="plus-sign plus-top-left" data-product-id="{{ collections[section.settings.collection].products[0].id }}" data-product-handle="{{ collections[section.settings.collection].products[0].handle }}">
+      <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 1V21M1 11H21" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    
+    <div class="plus-sign plus-top-center" data-product-id="{{ collections[section.settings.collection].products[1].id }}" data-product-handle="{{ collections[section.settings.collection].products[1].handle }}">
+      <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 1V21M1 11H21" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    
+    <div class="plus-sign plus-top-right" data-product-id="{{ collections[section.settings.collection].products[2].id }}" data-product-handle="{{ collections[section.settings.collection].products[2].handle }}">
+      <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 1V21M1 11H21" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    
+    <div class="plus-sign plus-bottom-left" data-product-id="{{ collections[section.settings.collection].products[3].id }}" data-product-handle="{{ collections[section.settings.collection].products[3].handle }}">
+      <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 1V21M1 11H21" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    
+    <div class="plus-sign plus-bottom-center" data-product-id="{{ collections[section.settings.collection].products[4].id }}" data-product-handle="{{ collections[section.settings.collection].products[4].handle }}">
+      <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 1V21M1 11H21" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    
+    <div class="plus-sign plus-bottom-right" data-product-id="{{ collections[section.settings.collection].products[5].id }}" data-product-handle="{{ collections[section.settings.collection].products[5].handle }}">
+      <svg viewBox="0 0 22 22" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 1V21M1 11H21" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  {% endif %}
+  
+  <div class="product-grid">
+    {% if section.settings.collection != blank %}
+      {% for product in collections[section.settings.collection].products limit: 6 %}
+        <div class="product-card">
+          <div class="product-image">
+            <img src="{{ product.featured_image | img_url: '433x444', crop: 'center' }}" alt="{{ product.featured_image.alt }}" width="433" height="444">
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      {% comment %} Placeholder products when no collection is selected {% endcomment %}
+      {% for i in (1..6) %}
+        <div class="product-card">
+          <div class="product-image">
+            <div class="placeholder-image">Product Image {{ i }}</div>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </div> 
+</div>
+  <!-- Product Popup Modal -->
+   <div class="product-popup-modal" id="product-popup">
+    <div class="popup-overlay"></div>
+    <div class="popup-content">
+        <div class="popup-close">&times;</div>
+        <div class="product-popup" id="product-popup-content">
+          <!-- content will load here via Javascript-->
+        </div>
+    </div>
+   </div>
+   
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+   const plusSigns = document.querySelectorAll('.plus-sign');
+   const popupModal = document.getElementById('product-popup');
+   const popupContent = document.getElementById('product-popup-content');
+   const closePopup = document.querySelector('.popup-close');
+   const overlay = document.querySelector('.popup-overlay');
+   
+   // Add CSS styles for dropdown arrow animation
+ const dropdownStyles = document.createElement('style');
+  dropdownStyles.textContent = `
+    .custom-dropdown {
+      position: relative;
+      width: 100%;
+      border: 1px solid #ddd;
+      cursor: pointer;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      height: 44px;
+      box-sizing: border-box;
+    }
+    
+    .dropdown-arrow {
+      transition: transform 0.3s ease;
+    }
+    
+    .dropdown-arrow.rotated {
+      transform: rotate(180deg);
+    }
+    
+    .size-dropdown {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+    
+    .size-options {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      width: 100%;
+      background: white;
+      border: 1px solid #ddd;
+      border-top: none;
+      max-height: 200px;
+      overflow-y: auto;
+      box-sizing: border-box;
+      /* Hide scrollbar but keep functionality */
+      scrollbar-width: none; /* Firefox */
+    }
+    
+    .size-options::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Edge */
+    }
+    
+    .size-options-container {
+      display: flex;
+      flex-wrap: wrap;
+    }
+    
+    .size-column {
+      flex: 1;
+      min-width: 50%;
+    }
+    
+    .size-option {
+      padding: 12px;
+      cursor: pointer;
+      font-family: 'Jost', sans-serif;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      border-bottom: 1px solid #f0f0f0;
+      text-align: center;
+      box-sizing: border-box;
+      /* Ensure options don't affect container width */
+      width: 100%;
+    }
+    
+    .size-option:hover {
+      background-color: #000000 !important;
+      color: #ffffff !important;
+      border-color: #000000 !important;
+    }
+    
+    .variant-option {
+      transition: transform 0.2s ease-out, background-color 0.2s ease-out, color 0.2s ease-out;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .variant-option:before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    .variant-option:hover:before {
+      left: 100%;
+    }
+    
+    .variant-option.right-selected {
+      animation: slideFromRight 0.3s ease-out;
+    }
+    
+    .variant-option.left-selected {
+      animation: slideFromLeft 0.3s ease-out;
+    }
+    
+    @keyframes slideFromRight {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    @keyframes slideFromLeft {
+      from {
+        transform: translateX(-100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    .selected-size-display {
+      display: none;
+      margin-top: 8px;
+      font-family: 'Jost', sans-serif;
+      font-size: 14px;
+      color: #000;
+    }
+
+  `;
+  document.head.appendChild(dropdownStyles);
+
+
+   // Function to check if H3 text is wrapping and adjust margin
+   function adjustH3Margin() {
+     const h3Element = document.querySelector('.product-popup h3');
+     
+     if (h3Element) {
+       // Reset to default margin first
+       h3Element.style.marginTop = '49px';
+       
+       // Get the computed line height
+       const lineHeight = parseInt(getComputedStyle(h3Element).lineHeight);
+       
+       // Check if text is wrapping by comparing scrollHeight to lineHeight
+       // If scrollHeight is greater than lineHeight, text is wrapping
+       if (h3Element.scrollHeight > lineHeight * 1.5) {
+         h3Element.style.marginTop = '34px';
+       }
+     }
+   }
+ 
+   // Store the Soft Winter Jacket variant ID here once we find it
+   let softWinterJacketVariantId = null;
+   
+   // Track which side was clicked for animation
+   let lastClickedSide = null;
+   
+   // Modified variant option click handler with slide animation
+   function handleVariantOptionClick(e) {
+     // Determine which side was clicked
+     const rect = this.getBoundingClientRect();
+     const clickX = e.clientX - rect.left;
+     const isRightSide = clickX > rect.width / 2;
+     
+     // Remove selected class from all options in the same group
+     const optionName = this.dataset.optionName;
+     const sameGroupOptions = document.querySelectorAll(`.variant-option[data-option-name="${optionName}"]`);
+     
+     sameGroupOptions.forEach(opt => {
+       opt.classList.remove('selected', 'right-selected', 'left-selected');
+     });
+     
+     // Add selected class to clicked option with appropriate animation
+     this.classList.add('selected');
+     this.classList.add(isRightSide ? 'right-selected' : 'left-selected');
+     
+     // Store the side for potential future use
+     lastClickedSide = isRightSide ? 'right' : 'left';
+   }
+   
+  function setupCustomDropdown() {
+  const customDropdowns = document.querySelectorAll('.custom-dropdown');
+  
+  customDropdowns.forEach(dropdown => {
+    const select = dropdown.querySelector('.size-dropdown');
+    const display = dropdown.querySelector('.dropdown-display');
+    const arrow = dropdown.querySelector('.dropdown-arrow');
+    const optionsContainer = dropdown.querySelector('.size-options');
+    
+    // Hide the native select element completely
+    select.style.display = 'none';
+    
+    // Toggle dropdown on click
+    dropdown.addEventListener('click', function(e) {
+      // Prevent any default behavior
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const isOpen = optionsContainer.style.display === 'block';
+      
+      // Close all other dropdowns first
+      document.querySelectorAll('.size-options').forEach(opt => {
+        if (opt !== optionsContainer) {
+          opt.style.display = 'none';
+          opt.closest('.custom-dropdown').querySelector('.dropdown-arrow').classList.remove('rotated');
+        }
+      });
+      
+      // Toggle this dropdown
+      optionsContainer.style.display = isOpen ? 'none' : 'block';
+      arrow.classList.toggle('rotated', !isOpen);
+    });
+    
+    // Handle option selection
+    optionsContainer.querySelectorAll('.size-option').forEach(option => {
+      option.addEventListener('click', function(e) {
+        const value = this.dataset.value;
+        
+        // Update the hidden select value
+        select.value = value;
+        
+        // Update display text
+        if (display) {
+          display.textContent = this.textContent;
+          display.classList.add('selected');
+        }
+        
+        // Close dropdown
+        optionsContainer.style.display = 'none';
+        arrow.classList.remove('rotated');
+        
+        // Trigger change event on the select
+        const event = new Event('change', { bubbles: true });
+        select.dispatchEvent(event);
+        
+        e.stopPropagation();
+      });
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!dropdown.contains(e.target)) {
+        optionsContainer.style.display = 'none';
+        arrow.classList.remove('rotated');
+      }
+    });
+    
+    // Prevent any interference from the hidden select
+    select.addEventListener('focus', function(e) {
+      this.blur();
+    });
+  });
+}
+
+
+  // Function to open popup with product data
+   function openProductPopup(productHandle, productId) {
+     // Show loading state
+     popupContent.innerHTML = '<div style="text-align: center; padding: 40px;">Loading product...</div>';
+     popupModal.style.display = 'block';
+     
+     // Fetch product data from Shopify API
+     fetch(`/products/${productHandle}.js`)
+       .then(response => {
+         if (!response.ok) {
+           throw new Error('Product not found');
+         }
+         return response.json();
+       })
+       .then(product => {
+         // Find size options if they exist
+         const sizeOption = product.options.find(option => 
+           option.name.toLowerCase().includes('size')
+         );
+         
+         popupContent.innerHTML = `
+           <div class="product-image-container">
+             <img src="${product.featured_image}" alt="${product.title}">
+           </div>
+           <div class="product-info-container">
+             <h3>${product.title}</h3>
+             <div class="price">${formatMoney(product.price)}</div>
+             <div class="description">${truncateDescription(product.description)}</div>
+           </div>
+           <div class="product-form-container">
+             <form class="product-form" id="product-form-${product.id}">
+               ${product.options.map((option, index) => {
+                 if (option.name.toLowerCase().includes('size')) return '';
+                 
+                 const isColorOption = option.name.toLowerCase().includes('color') || 
+                                      option.name.toLowerCase().includes('colour');
+                 
+                 return `
+                   <div class="variant-selector">
+                     <label>${option.name}</label>
+                     <div class="variant-options">
+                       ${option.values.map(value => {
+                         const colorStyle = isColorOption ? getColorStyle(value) : '';
+                         const colorIndicator = isColorOption ? `<span class="color-indicator" style="${colorStyle}"></span>` : '';
+                         
+                         return `
+                           <div class="variant-option" data-option-name="${option.name.toLowerCase()}" data-value="${value}">
+                             ${colorIndicator}${value}
+                           </div>
+                         `;
+                       }).join('')}
+                     </div>
+                   </div>
+                 `;
+               }).join('')}
+               
+               ${sizeOption ? `
+        <div class="size-selector">
+                <label>Size</label>
+                <div class="custom-dropdown">
+                  <div class="dropdown-display-container">
+                    <div class="dropdown-display">Choose your size</div>
+                  </div>
+                  <div class="dropdown-separator"></div>
+                  <div class="dropdown-arrow">
+                    <svg width="12" height="7" viewBox="0 0 12 7" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M1 1L6 6L11 1" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                  <select class="size-dropdown" name="size">
+                    <option value="" selected disabled>Choose your size</option>
+                    ${sizeOption.values.map(value => `
+                      <option value="${value}">${value}</option>
+                    `).join('')}
+                  </select>
+                  <div class="size-options">
+                    ${sizeOption.values.map(value => `
+                      <div class="size-option" data-value="${value}">${value}</div>
+                    `).join('')}
+                  </div>
+                </div>
+              </div>
+               ` : ''}
+               
+               <button type="submit" class="add-to-cart-btn">
+              <span class="button-text">ADD TO CART</span>
+              <span class="button-arrow-grid">→</span>
+              </button>
+             </form>
+           </div>
+         `;
+         
+         // Set up event listeners after content is loaded
+         setTimeout(() => {
+           // Set up variant options with slide animation
+           const variantOptions = popupContent.querySelectorAll('.variant-option');
+           variantOptions.forEach(option => {
+             option.addEventListener('click', handleVariantOptionClick);
+           });
+           
+           // Set up custom dropdown functionality
+           setupCustomDropdown();
+           
+           // Adjust H3 margin
+           adjustH3Margin();
+         }, 100);
+         
+         // Add event listener to form submission
+         const form = document.getElementById(`product-form-${product.id}`);
+         const addToCartBtn = form.querySelector('.add-to-cart-btn');
+         
+         form.addEventListener('submit', function(e) {
+           e.preventDefault();
+           
+           // Get selected variants by option name
+           const selectedOptions = {};
+           const selectedOptionElements = popupContent.querySelectorAll('.variant-option.selected');
+           
+           selectedOptionElements.forEach(option => {
+             const optionName = option.dataset.optionName;
+             const optionValue = option.dataset.value;
+             selectedOptions[optionName] = optionValue;
+           });
+           
+           // Get selected size from dropdown
+           const sizeDropdown = popupContent.querySelector('.size-dropdown');
+           if (sizeDropdown && sizeDropdown.value) {
+             selectedOptions['size'] = sizeDropdown.value;
+           }
+           
+           // Find the variant that matches selected options
+           let selectedVariant = null;
+           
+           if (Object.keys(selectedOptions).length === product.options.length) {
+             // All options are selected
+             selectedVariant = product.variants.find(variant => {
+               return product.options.every((option, index) => {
+                 const optionName = option.name.toLowerCase();
+                 return selectedOptions[optionName] === variant.options[index];
+               });
+             });
+           } else {
+             // Use first variant if no options are selected
+             selectedVariant = product.variants[0];
+           }
+           
+           if (selectedVariant) {
+             // Add to cart with the selected options
+             addToCart(selectedVariant.id, 1, selectedOptions);
+           } else {
+             alert('Please select all available options');
+           }
+         });
+       })
+        .catch(error => {
+         console.error('Error fetching product:', error);
+         popupContent.innerHTML = `<div style="text-align: center; padding: 40px; color: red;">Error loading product: ${error.message}</div>`;
+       });
+   }
+
+     // Function to format money
+      function formatMoney(cents) {
+        return '$' + (cents / 100).toFixed(2);
+     }
+  
+      // Function to truncate description
+     function truncateDescription(description) {
+    // Remove HTML tags
+    const plainText = description.replace(/<[^>]*>/g, '');
+    // Truncate to fit the space
+    return plainText.length > 100 ? plainText.substring(0, 100) + '...' : plainText;
+      }
+    
+      //function to get css style for color options
+      function getColorStyle(colorName) {
+        const colorMap = {
+            'black': 'background-color: #000000;',
+            'white': 'background-color: #ffffff; border: 1px solid #ddd;',
+            'red': 'background-color: #ff0000;',
+            'blue': 'background-color: #0000ff;',
+            'yellow': 'background-color: #ffff00;',
+            'green': 'background-color: #00ff00;',
+            'purple': 'background-color: #800080;',
+            'pink': 'background-color: #ffc0cb;',
+            'orange': 'background-color: #ffa500;',
+            'gray': 'background-color: #808080;',
+            'grey': 'background-color: #808080;',
+            'brown': 'background-color: #a52a2a;',
+            'navy': 'background-color: #000080;',
+            'beige': 'background-color: #f5f5dc;',
+            'cream': 'background-color: #fffdd0;',
+            'olive': 'background-color: #808000;',
+        };
+        const lowerColor = colorName.toLowerCase();
+    return colorMap[lowerColor] || 'background-color: #f0f0f0;';
+  }
+  
+  // Function to add product to cart
+  function addToCart(variantId, quantity, selectedOptions = {}) {
+    fetch('/cart/add.js', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        id: variantId,
+        quantity: quantity
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      // Check if we need to add the Soft Winter Jacket
+      const colorOption = selectedOptions['color'] || selectedOptions['colour'];
+      const sizeOption = selectedOptions['size'];
+
+      
+      // Check if both color is Black and size is Medium or M (case insensitive)
+      const isBlackColor = colorOption && colorOption.toLowerCase() === 'black';
+      const isMediumSize = sizeOption && (
+        sizeOption.toLowerCase() === 'medium' || 
+        sizeOption.toLowerCase() === 'm'
+      );
+      
+      if (isBlackColor && isMediumSize) {
+        // Add Soft Winter Jacket to cart
+        addSoftWinterJacket().then(() => {
+          alert('Product and Soft Winter Jacket added to cart!');
+          closeProductPopup();
+        }).catch(error => {
+          console.error('Error adding Soft Winter Jacket:', error);
+          alert('Product added to cart, but there was an error adding the Soft Winter Jacket.');
+          closeProductPopup();
+        });
+      } else {
+        // Show success message
+        alert('Product added to cart!');
+        closeProductPopup();
+      }
+    })
+    .catch(error => {
+      console.error('Error adding to cart:', error);
+      alert('Error adding product to cart. Please try again.');
+    });
+  }
+
+  // Function to add Soft Winter Jacket
+  function addSoftWinterJacket() {
+    return new Promise((resolve, reject) => {
+      // First, try to find the Soft Winter Jacket product
+      // Let's search through the collection to find it
+      const collectionHandle = '{{ section.settings.collection }}';
+      
+      if (!collectionHandle) {
+        reject(new Error('No collection specified'));
+        return;
+      }
+      
+      // Fetch the collection to find the Soft Winter Jacket product
+      fetch(`/collections/${collectionHandle}/products.json`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Collection not found');
+          }
+          return response.json();
+        })
+        .then(data => {
+          // Find the Soft Winter Jacket product
+          const softWinterJacket = data.products.find(product => 
+            product.title.toLowerCase().includes('soft winter jacket') ||
+            product.title.toLowerCase().includes('soft winter') ||
+            product.title.toLowerCase().includes('winter jacket')
+          );
+          
+          if (!softWinterJacket) {
+            throw new Error('Soft Winter Jacket not found in collection');
+          }
+          
+          console.log('Found Soft Winter Jacket:', softWinterJacket.title);
+          
+          // Use the first available variant
+          const variantId = softWinterJacket.variants[0].id;
+          console.log('Adding Soft Winter Jacket variant:', variantId);
+          
+          fetch('/cart/add.js', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              id: variantId,
+              quantity: 1
+            })
+          })
+          .then(response => {
+            if (!response.ok) {
+              throw new Error('Failed to add Soft Winter Jacket to cart');
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log('Soft Winter Jacket added to cart successfully');
+            resolve();
+          })
+          .catch(error => {
+            console.error('Error adding Soft Winter Jacket to cart:', error);
+            reject(error);
+          });
+        })
+        .catch(error => {
+          console.error('Error finding Soft Winter Jacket:', error);
+          reject(error);
+        });
+    });
+  }
+
+  // Function to close popup
+  function closeProductPopup() {
+    window.removeEventListener('resize', adjustH3Margin);
+    popupModal.style.display = 'none';
+  }
+  
+  // Add click event listeners to plus signs
+  plusSigns.forEach(plusSign => {
+    plusSign.addEventListener('click', function() {
+      const productHandle = this.dataset.productHandle;
+      const productId = this.dataset.productId;
+      if (productHandle) {
+        openProductPopup(productHandle, productId);
+      }
+    });
+  });
+  
+  // Add event listeners to close popup
+  closePopup.addEventListener('click', closeProductPopup);
+  overlay.addEventListener('click', closeProductPopup);
+  
+  // Close popup when clicking outside the content
+  popupModal.addEventListener('click', function(e) {
+    if (e.target === popupModal) {
+      closeProductPopup();
+    }
+  });
+  
+  // Close popup when pressing Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeProductPopup();
+    }
+  });
+  
+  // Add resize listener for H3 margin adjustment
+  window.addEventListener('resize', adjustH3Margin);
+});
+</script>
+
+{% schema %}
+{
+  "name": "Gift Guide Grid",
+  "settings": [
+    {
+      "type": "text",
+      "id": "heading",
+      "label": "Heading",
+      "default": "Tisso vison in the wild"
+    },
+    {
+      "type": "collection",
+      "id": "collection",
+      "label": "Collection"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Gift Guide Grid",
+      "category": "Custom"
+    }
+  ]
+}
+{% endschema %}
